@@ -35,7 +35,7 @@ jobs:
       - name: Checkout manifold-eval-gate action (private repo, read-only key)
         uses: actions/checkout@v4
         with:
-          repository: olivergale/vulcn-manifold
+          repository: VulcnForge/vulcn-manifold
           ref: 915b0fa6545aee54adcce3916102102100769148
           ssh-key: ${{ secrets.MANIFOLD_GATE_SSH_KEY }}
           path: .manifold-gate
