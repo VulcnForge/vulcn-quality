@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: olivergale/vulcn-manifold
-          ref: 915b0fa6545aee54adcce3916102102100769148
+          ref: 948888b47d381723fb6e825ab8d5911286effc04
           ssh-key: ${{ secrets.MANIFOLD_GATE_SSH_KEY }}
           path: .manifold-gate
           persist-credentials: false
