@@ -1,13 +1,89 @@
-# manifold-eval — vulcn-quality CI gate.
+# manifold-eval — vulcn-quality CI gate. INLINED ON PURPOSE. Read this before
+# "fixing" it by pointing it back at the shared action (VLCN-999).
 #
-# Thin caller of the shared `manifold-eval-gate` composite action's NODE profile
-# (npm ci + tsc typecheck + eslint + vitest). The job name `manifold-eval` is the
-# branch-protection required-check context.
+# WHAT THIS DUPLICATES
+#   The node profile of the shared composite action `.github/actions/
+#   manifold-eval-gate` in the PRIVATE VulcnForge/vulcn-manifold. The three run
+#   steps below are copied from that action's `runs.steps` (branch-shape
+#   validator, doctrine fidelity checks, node gate). There is NO automation
+#   keeping the copy in step with the original — a change to the shared action
+#   does NOT reach this repo, and someone has to port it here by hand.
 #
-# The library's own gate is fast + browser-free: it typechecks every surface
-# (incl. the Playwright-coupled registration fns) and unit-tests the pure surface
-# logic. The heavy Playwright/vitest-pool-workers execution runs in CONSUMER CI
-# via the reusable tier workflows (VLCN-595), not here.
+# WHY IT CANNOT BE CONSUMED BY REFERENCE
+#   vulcn-quality is deliberately PUBLIC (operator call 2026-06-10, VLCN-602:
+#   consumers npm-install the git-dep anonymously). A public repository cannot
+#   resolve a `uses:` into a private repository — GitHub will not hand a public
+#   repo's workflow a token that reads private VulcnForge code. That is a
+#   platform rule, not a misconfiguration, so there is no credential that makes
+#   `uses: VulcnForge/vulcn-manifold/.github/actions/manifold-eval-gate@sha`
+#   work from here.
+#
+# WHY THE OLD WORKAROUND IS GONE
+#   The previous shape checked the private action repo out over an SSH
+#   read-only deploy key, held as an Actions secret on this repo, into a
+#   scratch path in the workspace, then ran the action from that local path.
+#   (The secret's name and the checkout path are recorded on VLCN-999, not
+#   here — both literals are banned in this tree, VLCN-999 AC-1.) That coupling
+#   broke the merge gate TWICE:
+#     * VLCN-968 — the GitHub org was renamed to VulcnForge and the hardcoded
+#       `repository:` owner went stale (the retired owner string is not
+#       repeated here: it is a banned literal in this tree, VLCN-999 AC-5).
+#     * VLCN-999 — the deploy key stopped authorising the checkout; run
+#       31540767839 (2026-08-11) died on `ERROR: Repository not found.` /
+#       `fatal: Could not read from remote repository` / git exit 128, retried
+#       three times. A required check that cannot run means NOTHING in the repo
+#       can merge.
+#   It was REMOVED deliberately — it was not lost in a refactor, and restoring
+#   it is not a fix. Re-pointing this workflow at the private action, under any
+#   framing (fresh key, PAT, GitHub App, submodule, sparse checkout), re-creates
+#   exactly the public-repo/private-action coupling that has now taken the gate
+#   down twice. Do not do it.
+#
+# THE TRADE WE ACCEPTED
+#   Inlining buys independence and costs drift: this copy will diverge from the
+#   shared action until someone reconciles it by hand. That is the SAME trade
+#   this repo already made when it dropped the cross-repo manifold-review caller
+#   in favour of the operator-local reviewer trio (`bin/manifold review
+#   <PR-url>`, which posts the `manifold-review` status from the operator's
+#   machine). Accepted drift beats a gate that cannot run.
+#
+# DELTAS FROM THE COPIED ORIGINAL (disclosed, both behaviour-preserving)
+#   1. The shared action's caller-configurable command inputs are hardcoded to
+#      this repo's four npm commands — there is exactly one caller.
+#   2. The validator's `branch_class` / `wo_id` / `is_wo_branch` $GITHUB_OUTPUT
+#      block is dropped — nothing in this workflow consumes those outputs.
+#   `shell: bash` is set explicitly on every run step BECAUSE that is what the
+#   composite action gets (`bash --noprofile --norc -eo pipefail {0}`). Omitting
+#   it would silently downgrade to `bash -e {0}` with no pipefail and change the
+#   gate's semantics.
+#
+# THE DOCTRINE STEP IS INLINED, NOT DROPPED (measured 2026-08-11, VLCN-999)
+#   The shared action's node profile runs THREE steps, not two; the middle one
+#   is `Doctrine fidelity checks (warn-tier)` (Forum 0db70efc P1.1/P1.2/P1.4).
+#   Its own comment claims "No `set -e` ... must never fail the gate", but that
+#   is false as measured: GitHub runs `shell: bash` as `bash --noprofile --norc
+#   -eo pipefail {0}`, so `-e` and `pipefail` are ON whether or not the script
+#   sets them. Its last pipeline, `printf '%s\n' "$added" | head -10`, takes
+#   SIGPIPE once `$added` exceeds the 64 KiB pipe buffer; pipefail surfaces 141
+#   and `-e` aborts the step before the trailing `exit 0` is ever reached.
+#   Measured locally under those exact flags: 68,890 bytes of matching added
+#   lines exits 0, 138,890 bytes exits 141. It is therefore capable of failing
+#   the job — a PR adding a few thousand stub-marker lines turns this gate red
+#   for a reason that has nothing to do with quality — so it is carried inline
+#   VERBATIM rather than dropped as advisory. The latent SIGPIPE defect is
+#   upstream's and is filed as VLCN-1076 against the shared action, NOT patched
+#   here: a silent local divergence is how the copy stops being reviewable.
+#   When VLCN-1076 lands, port its fix into this copy by hand.
+#
+# WHAT THE GATE IS FOR
+#   Fast + browser-free: it typechecks every surface (incl. the
+#   Playwright-coupled registration fns) and unit-tests the pure surface logic.
+#   The heavy Playwright execution runs in CONSUMER CI via the reusable tier
+#   workflows (VLCN-595), never here.
+#
+# The job key AND its `name:` are both `manifold-eval` because that string is
+# the branch-protection required-check context. Renaming either stops
+# protection matching and nothing in this repo merges.
 
 name: manifold-eval
 
@@ -27,25 +103,111 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # This repo is PUBLIC (operator call 2026-06-10, VLCN-602: consumers
-      # npm-install the git-dep anonymously) but the gate action lives in the
-      # PRIVATE vulcn-manifold — public repos cannot resolve private actions
-      # by reference, so check the action repo out via a read-only deploy key
-      # and run it from the local path. Same SHA pin as before (doctrine C1).
-      - name: Checkout manifold-eval-gate action (private repo, read-only key)
-        uses: actions/checkout@v4
-        with:
-          repository: olivergale/vulcn-manifold
-          ref: 915b0fa6545aee54adcce3916102102100769148
-          ssh-key: ${{ secrets.MANIFOLD_GATE_SSH_KEY }}
-          path: .manifold-gate
-          persist-credentials: false
+      # Branch classes (copied verbatim from the shared action's `shape` step):
+      #   1. WO    — WO-YYYY-MM-DD-NNN/<kebab-slug>              → pass
+      #   2. infra — main | prod | staging | release/* | hotfix/* → pass
+      #   3. else (chore/ included — VLCN-417) → FAIL, SHAPE_REJECT
+      - name: Validate branch shape
+        shell: bash
+        env:
+          PR_HEAD_REF: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          EXAMPLE_SLUG: WO-2026-06-02-001/example-slug
+        run: |
+          set -euo pipefail
 
-      - name: manifold-eval gate (node — vulcn-quality)
-        uses: ./.manifold-gate/.github/actions/manifold-eval-gate
+          ref="${PR_HEAD_REF:-}"
+          branch_class=""
+          wo_id=""
+
+          # 1. Canonical WO shape: WO-YYYY-MM-DD-NNN/<kebab-slug>
+          if [[ "$ref" =~ ^(WO-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{3})/[a-z0-9][a-z0-9-]*[a-z0-9]$ ]]; then
+            branch_class="wo"
+            wo_id="${BASH_REMATCH[1]}"
+
+          # 2. Infra-exempt branches.
+          elif [[ "$ref" =~ ^(main|prod|staging)$ ]]; then
+            branch_class="infra"
+          elif [[ "$ref" =~ ^(release|hotfix)/.+$ ]]; then
+            branch_class="infra"
+
+          # 3. Reject everything else (chore/ included — VLCN-417).
+          else
+            {
+              echo "::error title=manifold-eval: SHAPE_REJECT::Branch '${ref:-<empty>}' does not match the canonical v3 WO shape."
+              echo "manifold-eval: SHAPE_REJECT"
+              echo "Branch '${ref:-<empty>}' does not match the canonical v3 WO shape."
+              echo "Required: WO-YYYY-MM-DD-NNN/<kebab-slug>"
+              echo "Example:  ${EXAMPLE_SLUG}"
+              echo "See feedback_v3_branch_shape_mandatory.md or operator for slug allocation."
+            } >&2
+            exit 1
+          fi
+
+          echo "[manifold-eval] branch '${ref}' classified as ${branch_class}${wo_id:+ (wo_id=${wo_id})}"
+
+      # Build-fidelity doctrine checks (Forum 0db70efc P1.1/P1.2/P1.4) — copied
+      # verbatim from the shared action. Warn-tier by intent (P1.6:
+      # calibrate-then-ratchet), though see the header: under GitHub's bash
+      # flags this step CAN abort, which is why it is carried rather than
+      # dropped.
+      - name: Doctrine fidelity checks (warn-tier)
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          # No `set -e` — every probe here is advisory and must never fail the gate.
+
+          # P1.1 — agent-context floor: root CLAUDE.md exists and names the
+          # operating model (ship/merge discipline, naming, CI checks).
+          if [ ! -f CLAUDE.md ]; then
+            echo "::warning title=doctrine P1.1::no root CLAUDE.md — fleet minimum is a CLAUDE.md naming the ship loop, naming conventions, and the required-vs-informational CI split (Forum 0db70efc)."
+          else
+            grep -qiE 'ship loop|merge discipline' CLAUDE.md || echo "::warning title=doctrine P1.1::CLAUDE.md has no ship-loop / merge-discipline section."
+            grep -qiE '^#+ .*naming' CLAUDE.md || echo "::warning title=doctrine P1.1::CLAUDE.md has no Naming section."
+            grep -qiE 'manifold-review|required check|ci checks' CLAUDE.md || echo "::warning title=doctrine P1.1::CLAUDE.md does not name its required CI checks."
+          fi
+
+          # P1.2 — orphan test corpus: pgTAP files with no workflow that runs them.
+          if ls supabase/tests/*.sql >/dev/null 2>&1; then
+            if ! grep -rqiE 'pgtap|run-pgtap' .github/workflows/ 2>/dev/null; then
+              echo "::warning title=doctrine P1.2::supabase/tests/*.sql exist but no workflow runs pgTAP — an orphan test corpus is a fidelity hole (Forum 0db70efc)."
+            fi
+          fi
+
+          # P1.4 — stub markers on ADDED lines (PR diffs only; fail-open when the
+          # base isn't fetchable). High-signal markers only — calibrated to avoid
+          # false-positives on legit strings (so no 'placeholder'/'coming soon').
+          if [ -n "${BASE_REF:-}" ] && git fetch origin "$BASE_REF" --depth=1 >/dev/null 2>&1; then
+            added="$(git diff FETCH_HEAD HEAD --unified=0 -- '*.ts' '*.tsx' '*.js' '*.py' '*.sh' '*.sql' 2>/dev/null \
+              | grep -E '^\+[^+]' \
+              | grep -vE '(test|spec|__tests__|_test\.)' \
+              | grep -nE '\b(TODO|FIXME|XXX|STUB|HACK|not[ -]?implemented)\b' || true)"
+            if [ -n "$added" ]; then
+              count="$(printf '%s\n' "$added" | wc -l | tr -d ' ')"
+              echo "::warning title=doctrine P1.4::${count} added line(s) carry stub/deferred-work markers (TODO/FIXME/STUB/...). Shipped-as-done must not contain deferred work (Forum 0db70efc):"
+              printf '%s\n' "$added" | head -10
+            fi
+          fi
+          exit 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          runtime: node
-          node-install: npm ci
-          node-typecheck: npm run typecheck
-          node-lint: npm run lint
-          node-test: npm test
+          node-version: "20"
+
+      # Node gate — the shared action's node profile with this repo's commands
+      # substituted for its inputs. Sequential and fail-fast under `set -euo
+      # pipefail`, exactly as upstream: an earlier leg failing means the later
+      # legs never run.
+      - name: Node gate (install + typecheck + lint + test)
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "[node gate] install: npm ci"
+          npm ci
+          echo "[node gate] typecheck: npm run typecheck"
+          npm run typecheck
+          echo "[node gate] lint: npm run lint"
+          npm run lint
+          echo "[node gate] test: npm test"
+          npm test

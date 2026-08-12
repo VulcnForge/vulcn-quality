@@ -59,7 +59,7 @@ name: quality
 on: [pull_request]
 jobs:
   quality:
-    uses: olivergale/vulcn-quality/.github/workflows/quality.yml@main
+    uses: VulcnForge/vulcn-quality/.github/workflows/quality.yml@main
     with:
       tier: 0
       base_url: https://staging.example.com
@@ -99,7 +99,7 @@ on:
   workflow_dispatch:
 jobs:
   nightly:
-    uses: olivergale/vulcn-quality/.github/workflows/quality-nightly.yml@main
+    uses: VulcnForge/vulcn-quality/.github/workflows/quality-nightly.yml@main
     with:
       tier: 1
       base_url: https://staging.example.com
