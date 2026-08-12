@@ -34,7 +34,7 @@ package-manifest reference) and auto-PRs broken rows back to `unconsumed`
 
 ## Conventions that bite
 
-- **Consumption pin is the git TAG** (`github:olivergale/vulcn-quality#vX.Y.Z`),
+- **Consumption pin is the git TAG** (`github:VulcnForge/vulcn-quality#vX.Y.Z`),
   not package.json's version field (it lags; VLCN-613). Cutting a release =
   tag push; consumers bump deliberately.
 - **This repo is PUBLIC** (VLCN-602) — no secrets, no client names in

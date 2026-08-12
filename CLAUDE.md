@@ -26,7 +26,7 @@ surfaces at a tier set by criticality, instead of bespoke per-project QC.
   `.github/workflows/quality.yml` + `quality-nightly.yml` that CONSUMER repos call.
 
 Consumption is at arm's length: a consumer pins the git dep
-(`"@vulcn/quality": "github:olivergale/vulcn-quality#vX.Y.Z"`), imports a surface
+(`"@vulcn/quality": "github:VulcnForge/vulcn-quality#vX.Y.Z"`), imports a surface
 into its own thin spec, and calls the reusable workflow from its own CI. This
 repo's own CI never launches a browser — the heavy Playwright execution belongs
 to consumer CI.
@@ -64,7 +64,7 @@ Operator-direct PRs (v3 — does NOT route through omv2 `bin/wo`).
    ```bash
    npm run lint && npm run typecheck && npm test
    ```
-3. **PR** to `main` on `olivergale/vulcn-quality`; reference `VLCN-NNN` in the
+3. **PR** to `main` on `VulcnForge/vulcn-quality`; reference `VLCN-NNN` in the
    title/body for traceability. Wait for green `manifold-eval`.
 4. **Review trio**: `cd ~/projects/vulcn/manifold && source ~/.zshrc &&
    bin/manifold review <PR-url>` — posts the `manifold-review` status to the PR
@@ -94,9 +94,9 @@ Non-code artifacts:
 | Artifact            | Convention                                                                  |
 | ------------------- | --------------------------------------------------------------------------- |
 | Repo path           | `~/projects/vulcn/quality/`                                                 |
-| GitHub repo         | `olivergale/vulcn-quality` (**public** — operator call, VLCN-602: consumers npm-install the git-dep anonymously; gate action runs via read-only deploy key)                                        |
+| GitHub repo         | `VulcnForge/vulcn-quality` (**public** — operator call, VLCN-602: consumers npm-install the git-dep anonymously; because it is public it cannot `uses:` a private-repo action, so the gate is INLINED — VLCN-999) |
 | User-facing display | "Vulcn Quality" titlecase                                                   |
-| npm name            | `@vulcn/quality` (consumed as a PINNED git dep `github:olivergale/vulcn-quality#vX.Y.Z` — git TAGS are the consumption pin) |
+| npm name            | `@vulcn/quality` (consumed as a PINNED git dep `github:VulcnForge/vulcn-quality#vX.Y.Z` — git TAGS are the consumption pin) |
 | Branch shape        | `WO-YYYY-MM-DD-NNN/<kebab>` via `bin/next-slug.sh` (see Ship loop)          |
 
 ## CI checks
@@ -104,10 +104,14 @@ Non-code artifacts:
 Required (branch protection on `main`, `enforce_admins=true` — the live
 authority is `gh api .../branches/main/protection`):
 
-- **`manifold-eval`** — `.github/workflows/manifold-eval.yml`, a thin caller of
-  the shared `manifold-eval-gate` composite action (vulcn-manifold), **node
-  profile**: branch-shape validation + `npm ci` + `npm run typecheck` +
-  `npm run lint` + `npm test`. Fast and browser-free by design.
+- **`manifold-eval`** — `.github/workflows/manifold-eval.yml`, a self-contained
+  INLINE copy of the shared `manifold-eval-gate` composite action's **node
+  profile** (vulcn-manifold; not consumed by reference — a public repo cannot
+  resolve a private-repo action, VLCN-999): branch-shape validation + doctrine
+  fidelity checks + `npm ci` + `npm run typecheck` + `npm run lint` +
+  `npm test`. Fast and browser-free by design. The copy drifts from upstream by
+  design — read the header comment in the workflow before changing it, and do
+  NOT re-point it at the private action.
 - **`manifold-review`** — NOT a workflow in this repo; posted to the PR head SHA
   by `bin/manifold review <PR-url>` (vulcn-manifold reviewer trio). Without it
   the merge stays blocked even on green CI.
