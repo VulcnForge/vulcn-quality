@@ -71,8 +71,9 @@
 #   the job — a PR adding a few thousand stub-marker lines turns this gate red
 #   for a reason that has nothing to do with quality — so it is carried inline
 #   VERBATIM rather than dropped as advisory. The latent SIGPIPE defect is
-#   upstream's; it is reported against the shared action, not patched here,
-#   because a silent local divergence is how the copy stops being reviewable.
+#   upstream's and is filed as VLCN-1076 against the shared action, NOT patched
+#   here: a silent local divergence is how the copy stops being reviewable.
+#   When VLCN-1076 lands, port its fix into this copy by hand.
 #
 # WHAT THE GATE IS FOR
 #   Fast + browser-free: it typechecks every surface (incl. the
