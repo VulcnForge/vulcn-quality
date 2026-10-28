@@ -66,8 +66,8 @@ Operator-direct PRs (v3 — does NOT route through omv2 `bin/wo`).
    ```
 3. **PR** to `main` on `VulcnForge/vulcn-quality`; reference `VLCN-NNN` in the
    title/body for traceability. Wait for green `manifold-eval`.
-4. **Review trio**: `cd ~/projects/vulcn/manifold && source ~/.zshrc &&
-   bin/manifold review <PR-url>` — posts the `manifold-review` status to the PR
+4. **Review trio**: `~/.claude/skills/bin/merge-watch/trio-launch VulcnForge/vulcn-quality <N> <full head SHA>`
+   (VLCN-1911; never a bare `bin/manifold review`) — posts the `manifold-review` status to the PR
    head SHA. It is `success` only on a non-block `approve` that names a
    live-boundary signal.
 5. **Self-merge on green** (BOTH checks) per [[v3-self-merge-on-green]]:
@@ -113,7 +113,7 @@ authority is `gh api .../branches/main/protection`):
   design — read the header comment in the workflow before changing it, and do
   NOT re-point it at the private action.
 - **`manifold-review`** — NOT a workflow in this repo; posted to the PR head SHA
-  by `bin/manifold review <PR-url>` (vulcn-manifold reviewer trio). Without it
+  by the vulcn-manifold reviewer trio, started by `trio-launch` (VLCN-1911). Without it
   the merge stays blocked even on green CI.
 
 `.github/workflows/quality.yml` and `quality-nightly.yml` are `workflow_call`
