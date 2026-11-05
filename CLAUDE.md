@@ -66,10 +66,11 @@ Operator-direct PRs (v3 — does NOT route through omv2 `bin/wo`).
    ```
 3. **PR** to `main` on `VulcnForge/vulcn-quality`; reference `VLCN-NNN` in the
    title/body for traceability. Wait for green `manifold-eval`.
-4. **Review trio**: `~/.claude/skills/bin/merge-watch/trio-launch VulcnForge/vulcn-quality <N> <full head SHA>`
-   (VLCN-1911; never a bare `bin/manifold review`) — posts the `manifold-review` status to the PR
-   head SHA. It is `success` only on a non-block `approve` that names a
-   live-boundary signal.
+4. **Review trio**:
+   `~/.claude/skills/bin/merge-watch/trio-launch VulcnForge/vulcn-quality <N> <full head SHA>`
+   (VLCN-1911; never a bare `bin/manifold review`) — posts the `manifold-review`
+   status to the PR head SHA. It is `success` only on a non-block `approve` that
+   names a live-boundary signal.
 5. **Self-merge on green** (BOTH checks) per [[v3-self-merge-on-green]]:
    `gh pr merge <n> --squash --delete-branch`.
 6. **Reconcile** (always, per [[post-merge-local-reconcile]]): `git fetch
